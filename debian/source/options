@@ -1,0 +1,15 @@
+# Keep build artifacts and the npm dependency trees out of the source tarball.
+tar-ignore = node_modules
+tar-ignore = */node_modules
+tar-ignore = dist
+tar-ignore = packages/*/dist
+tar-ignore = debian/build-home
+tar-ignore = debian/npm-cache
+tar-ignore = debian/tarballs
+tar-ignore = debian/install-root
+tar-ignore = debian/pi-coding-agent
+tar-ignore = debian/.debhelper
+tar-ignore = debian/files
+tar-ignore = debian/*.substvars
+tar-ignore = .git
+tar-ignore = *.tsbuildinfo

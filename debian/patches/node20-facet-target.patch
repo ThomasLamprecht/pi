@@ -1,0 +1,11 @@
+--- a/packages/chord/src/node/bundle.ts
++++ b/packages/chord/src/node/bundle.ts
+@@ -108,7 +108,7 @@
+ 		target:
+ 			input.options.target === undefined
+ 				? requestedPlatform === "node"
+-					? "node22.19"
++					? "node20.18"
+ 					: "es2022"
+ 				: typeof input.options.target === "string"
+ 					? input.options.target

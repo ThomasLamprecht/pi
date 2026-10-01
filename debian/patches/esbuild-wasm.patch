@@ -1,0 +1,11 @@
+--- a/packages/chord/package.json
++++ b/packages/chord/package.json
+@@ -63,7 +63,7 @@
+ 		"node": ">=22.19.0"
+ 	},
+ 	"dependencies": {
+-		"esbuild": "0.28.2"
++		"esbuild": "npm:esbuild-wasm@0.28.2"
+ 	},
+ 	"devDependencies": {
+ 		"shx": "0.4.0",

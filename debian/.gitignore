@@ -1,0 +1,13 @@
+# debhelper / build artifacts
+/.debhelper/
+/pi-coding-agent/
+/pi-coding-agent.substvars
+/files
+/debhelper-build-stamp
+*.debhelper.log
+
+# build scratch created by debian/rules
+/build-home/
+/npm-cache/
+/tarballs/
+/install-root/
