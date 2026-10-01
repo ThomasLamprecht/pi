@@ -10,6 +10,9 @@ packages/*/dist-chrome/
 packages/*/dist-firefox/
 packages/ai/src/providers/data/
 packages/ai/src/providers/.model-generation-*/
+# Debian builds use a committed model snapshot instead of live catalog generation.
+!packages/ai/src/providers/data/
+!packages/ai/src/providers/data/**
 *.cpuprofile
 
 # Environment
