@@ -1,0 +1,6 @@
+version=4
+# Track upstream release tags (v0.79.8, ...) on GitHub. The packaged version
+# follows the @earendil-works/pi-coding-agent package version.
+opts="mode=git,gitmode=full,pgpmode=none" \
+  https://github.com/earendil-works/pi.git \
+  refs/tags/v@ANY_VERSION@

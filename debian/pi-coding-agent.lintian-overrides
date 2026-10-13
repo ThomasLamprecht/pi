@@ -1,0 +1,22 @@
+# This package deliberately bundles the upstream project's production npm
+# dependency closure under /usr/lib/pi (Debian does not package these in a form
+# the agent can consume). The tags below are direct, intended consequences of
+# that bundling rather than defects. They are overridden without a context
+# pattern because every occurrence lives under /usr/lib/pi and is expected.
+
+# JavaScript modules under /usr/lib/pi are run through the node interpreter (see
+# the /usr/bin/pi launcher), or are CLI entry points of bundled dependencies
+# that this package does not invoke. They are intentionally not executable, and
+# dh_fixperms keeps /usr/lib content non-executable in any case.
+pi-coding-agent: script-not-executable
+
+# False positive: @mistralai/mistralai/esm/types/async.js holds the SDK's own
+# async helper types, not an embedded copy of the "async" npm library.
+pi-coding-agent: embedded-javascript-library
+
+# The agent reads its own bundled documentation and example extensions at
+# runtime (pi --help, the docs viewer), so they ship next to the code.
+pi-coding-agent: package-contains-documentation-outside-usr-share-doc
+
+# License files shipped inside the bundled npm dependencies.
+pi-coding-agent: extra-license-file

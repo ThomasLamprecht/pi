@@ -1,0 +1,135 @@
+#!/usr/bin/make -f
+
+# Build the Pi coding agent and bundle a pruned production dependency closure.
+#
+# The upstream project is an npm workspace monorepo. We compile every workspace
+# package, pack them into tarballs, and resolve them together with their pinned
+# third-party dependencies from the npm registry into an
+# isolated install tree. That tree, minus development and optional pieces, is
+# what ships under /usr/lib/pi. A thin /usr/bin/pi wrapper runs it with Node.js.
+#
+# Note: the build needs network access to the npm registry. It runs on the
+# Node.js Debian ships (>= 20.18.1); npm ci emits EBADENGINE warnings because
+# upstream's engines field is >= 22.19.0, but they are benign (TypeScript 7 uses a native
+# binary, and the model-codegen step that needs Node >= 22.6 is skipped).
+
+export DH_VERBOSE = 1
+
+# Keep npm/node entirely inside the build tree: never touch the builder's real
+# $HOME, and stay quiet and deterministic.
+export HOME = $(CURDIR)/debian/build-home
+export npm_config_cache = $(CURDIR)/debian/npm-cache
+export npm_config_audit = false
+export npm_config_fund = false
+export npm_config_progress = false
+export npm_config_update_notifier = false
+export HUSKY = 0
+
+PKG := pi-coding-agent
+DESTDIR := debian/$(PKG)
+LIBDIR := $(DESTDIR)/usr/lib/pi
+
+TARBALLS := $(CURDIR)/debian/tarballs
+INSTALL_ROOT := $(CURDIR)/debian/install-root
+ROOT_MODULES := $(INSTALL_ROOT)/node_modules
+APP_MODULE := $(ROOT_MODULES)/@earendil-works/pi-coding-agent
+
+WORKSPACES := \
+	@earendil-works/pi-telemetry \
+	@earendil-works/pi-ai \
+	@earendil-works/pi-tui \
+	@earendil-works/pi-agent-core \
+	@earendil-works/pi-codemode \
+	@earendil-works/pi-mcp \
+	@earendil-works/pi-coding-agent
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	mkdir -p $(HOME) $(npm_config_cache)
+	npm ci --ignore-scripts
+
+override_dh_auto_build:
+	# Compile each workspace package in dependency order. TypeScript 7 uses a native
+	# binary and runs on Node 20.
+	#
+	# pi-ai's upstream build first runs generate-models, which fetches live
+	# model catalogs over the network and runs .ts via node (Node >= 22.6) to
+	# emit src/providers/data/*.json (model values) alongside the committed
+	# src/providers/*.models.ts (structural catalog). The data JSON is gitignored
+	# upstream; we ship a committed snapshot of src/providers/data/ (see the
+	# negation in .gitignore) and compile it directly with tsc, then copy the
+	# data into dist verbatim, matching upstream's build:offline. This keeps the
+	# model compilation independent of live catalogs and compatible with Node 20.
+	sh debian/apply-patches apply
+	npm run build -w @earendil-works/pi-telemetry
+	npm run build -w @earendil-works/pi-tui
+	npm run build -w @earendil-works/pi-codemode
+	npm run build -w @earendil-works/pi-mcp
+	cd packages/ai && $(CURDIR)/node_modules/.bin/tsc -p tsconfig.build.json
+	cd packages/ai && rm -rf dist/providers/data && cp -r src/providers/data dist/providers/data
+	npm run build -w @earendil-works/pi-agent-core
+	# coding-agent's "build" script runs an esbuild bundler that validates
+	# external imports; undici 8.x's SqliteCacheStore imports node:sqlite,
+	# which isBuiltin() does not recognise on Node 20 (it landed in 22.5).
+	# The bundle is only used by the npm-published bin (dist/bundle/cli.js);
+	# the Debian launcher runs dist/cli.js directly, so build:unbundled suffices.
+	npm run build:unbundled -w @earendil-works/pi-coding-agent
+	# Pack the freshly built packages.
+	rm -rf $(TARBALLS) $(INSTALL_ROOT)
+	mkdir -p $(TARBALLS)
+	npm pack --ignore-scripts --pack-destination $(TARBALLS) \
+		$(foreach ws,$(WORKSPACES),-w $(ws))
+	# Resolve the production closure into an isolated tree. The seven local
+	# tarballs are direct dependencies so the workspace packages come
+	# from this build. Direct third-party dependencies are pinned upstream;
+	# transitive ranges resolve from the registry and enter the install lock.
+	mkdir -p $(INSTALL_ROOT)
+	node debian/gen-install-root.mjs $(INSTALL_ROOT)
+	cd $(INSTALL_ROOT) && npm install --omit=dev --omit=optional --ignore-scripts
+
+override_dh_auto_test:
+	# Upstream tests require provider API keys and network access; skip them.
+
+override_dh_auto_install:
+	# Application: compiled output, package metadata, docs and examples.
+	# Copy the package without its (hoisted) node_modules first ...
+	install -d $(LIBDIR)
+	cp -a $(APP_MODULE)/. $(LIBDIR)/
+	# ... then overlay the full hoisted dependency closure without clobbering
+	# any deps npm chose to nest inside the application package.
+	install -d $(LIBDIR)/node_modules
+	cp -an $(ROOT_MODULES)/. $(LIBDIR)/node_modules/
+	# Drop the application's own copy and npm bookkeeping from node_modules.
+	rm -rf $(LIBDIR)/node_modules/@earendil-works/pi-coding-agent
+	rm -rf $(LIBDIR)/node_modules/.bin $(LIBDIR)/node_modules/.package-lock.json
+	# Native TUI helpers would make an arch:all package non-portable.
+	# Linux clipboard access uses wl-clipboard or xclip instead.
+	rm -rf $(LIBDIR)/node_modules/@earendil-works/pi-tui/native
+	# Prune version-control, linter and editor cruft that npm packages drag
+	# along (the linter configs are a lintian error in a shipped package).
+	find $(LIBDIR)/node_modules \
+		\( -name '.git' -o -name '.github' -o -name '.husky' \) -type d \
+		-prune -exec rm -rf {} +
+	find $(LIBDIR)/node_modules -type f \( \
+		   -name '.gitignore' -o -name '.npmignore' -o -name '.gitattributes' \
+		-o -name '.editorconfig' -o -name '.DS_Store' \
+		-o -name '.eslintrc' -o -name '.eslintrc.*' -o -name '.eslintignore' \
+		-o -name '.prettierrc' -o -name '.prettierrc.*' -o -name '.prettierignore' \
+		\) -delete
+	# Normalize permissions: nothing under /usr/lib/pi is executed directly
+	# (the launcher runs the JS through node), so strip the stray executable
+	# bits dependency tarballs leave on data files, package.json and *.wasm.
+	find $(LIBDIR) -type f -exec chmod 0644 {} +
+	find $(LIBDIR) -type d -empty -delete
+	# Launcher.
+	install -D -m0755 debian/pi.launcher $(DESTDIR)/usr/bin/pi
+	# Exercise the assembled runtime closure, not the development dependencies.
+	node debian/check-package.mjs $(LIBDIR)
+
+override_dh_auto_clean:
+	rm -rf $(TARBALLS) $(INSTALL_ROOT) debian/build-home debian/npm-cache
+	sh debian/apply-patches reverse
+	# Remove compiled output directly so cleaning never needs npm/node.
+	rm -rf packages/*/dist packages/*/*.tsbuildinfo

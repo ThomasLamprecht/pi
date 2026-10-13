@@ -1,0 +1,16 @@
+#!/bin/sh
+# Check the complete patch state; never treat a rejected hunk as success.
+set -eu
+case "${1:-}" in
+    apply) direction=; opposite=-R ;;
+    reverse) direction=-R; opposite= ;;
+    *) echo "usage: $0 apply|reverse" >&2; exit 2 ;;
+esac
+for file in debian/patches/*.patch; do
+    if patch --batch --forward --dry-run -p1 $direction < "$file" >/dev/null 2>&1; then
+        patch --batch --forward --no-backup-if-mismatch -p1 $direction < "$file"
+    elif ! patch --batch --forward --dry-run -p1 $opposite < "$file" >/dev/null 2>&1; then
+        echo "Cannot $1 $file: source matches neither patch state" >&2
+        exit 1
+    fi
+done

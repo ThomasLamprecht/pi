@@ -1,0 +1,30 @@
+#!/bin/bash
+# Copy tracked working-tree files, not generated dependencies or build outputs.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+root=$PWD
+package=$(dpkg-parsechangelog -S Source)
+version=$(dpkg-parsechangelog -S Version)
+file_version=${version#*:}
+mkdir -p build
+# Serialize builds sharing the output directory, including artifact archiving.
+exec 9>build/.build-package.lock
+flock 9
+shopt -s nullglob
+outputs=("$root/build/${package}_${file_version}_"* "$root/build/${package}_${file_version}."*)
+if [ "${#outputs[@]}" -gt 0 ]; then
+    archive=$(mktemp -d "$root/build/previous-outputs-$file_version-XXXXXX")
+    mv -- "${outputs[@]}" "$archive/"
+    printf 'Previous package outputs: %s\n' "$archive"
+fi
+source_dir=$(mktemp -d "$root/build/$package-$file_version-XXXXXX")
+git ls-files -z > "$source_dir/.source-files"
+tar --null --verbatim-files-from -T "$source_dir/.source-files" -cf - |
+    tar -xf - -C "$source_dir"
+if [ "$#" -eq 0 ]; then
+    set -- -b -uc -us
+fi
+printf 'Building in %s\n' "$source_dir"
+cd "$source_dir"
+dpkg-buildpackage "$@"
+printf 'Package outputs: %s/build\n' "$root"
