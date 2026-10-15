@@ -1,0 +1,19 @@
+#!/bin/sh
+# Launcher for the Pi coding agent (Debian package: pi-coding-agent).
+#
+# The compiled application and its bundled Node.js dependency closure live
+# under /usr/lib/pi. This wrapper locates a Node.js runtime and hands over to
+# the CLI entry point, forwarding all arguments.
+set -eu
+
+PI_MAIN=/usr/lib/pi/dist/cli.js
+
+for nodebin in node nodejs; do
+	if command -v "$nodebin" >/dev/null 2>&1; then
+		exec "$nodebin" "$PI_MAIN" "$@"
+	fi
+done
+
+echo "pi: no Node.js runtime found on PATH (need Node.js >= 20.18.1)." >&2
+echo "pi: install a recent 'nodejs', e.g. from https://nodejs.org/." >&2
+exit 1

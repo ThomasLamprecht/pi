@@ -37,7 +37,8 @@
 			"!**/*.models.ts",
 			"!packages/mom/data/**/*",
 			"!!**/node_modules",
-			"!!apps"
+			"!!apps",
+			"!!build"
 		]
 	},
 	"plugins": ["./scripts/biome/model-type-comparison.grit"]

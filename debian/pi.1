@@ -1,0 +1,214 @@
+.TH PI 1 "October 2026" "pi-coding-agent 1.3.0" "User Commands"
+.SH NAME
+pi \- self-extensible AI coding agent for the terminal
+.SH SYNOPSIS
+.B pi
+.RI [ options ]
+.RI [ @files ...]
+.RI [ messages ...]
+.br
+.B pi
+.I command
+.RI [ args ...]
+.SH DESCRIPTION
+.B pi
+is an interactive coding agent that runs in the terminal. It reads, edits,
+and writes files, runs shell commands, and keeps persistent sessions, driving
+a large language model through a tool-calling loop to carry out software
+engineering tasks.
+.PP
+Run without arguments it starts an interactive session in the current
+directory. Positional arguments are sent as the first message; arguments of
+the form
+.IB @ file
+attach a file's contents to that message.
+.PP
+It talks to many providers through one unified API, including OpenAI,
+Anthropic, Google, Mistral, Amazon Bedrock, Azure OpenAI, and GitHub Copilot,
+and can be extended at runtime with custom tools, skills, prompt templates,
+and themes.
+.PP
+Only the most common options are listed below; run
+.B pi \-\-help
+for the complete and authoritative list, which also includes flags
+registered by loaded extensions.
+.SH COMMANDS
+.TP
+.B install \fIsource\fR
+Install an extension source and add it to the settings.
+.TP
+.B remove \fIsource\fR
+Remove an extension source from the settings
+.RB ( uninstall
+is an alias).
+.TP
+.B update \fR[\fIsource\fR|self|pi]
+Update an extension, or pi itself. Note that when pi was installed from this
+Debian package it should be updated through the system package manager rather
+than with this command.
+.TP
+.B list
+List the installed extensions.
+.TP
+.B config
+Open the interactive UI to enable or disable package resources.
+.TP
+.B auth print-api-key\fR|\fBprint-bearer-token\fR|\fBcheck
+Print a configured credential on stdout, or check provider readiness.
+.B print-api-key
+outputs the resolved API key;
+.B print-bearer-token
+outputs an OAuth bearer token (refreshing it if needed) with a default
+30-minute minimum validity, adjustable with
+.BR --min-expiry .
+.B check
+verifies that a provider is configured and refreshes expired OAuth
+tokens; use
+.B --no-refresh
+to test without refreshing. All subcommands accept
+.BI --provider " name"
+and
+.BI --model " pattern\&"
+to select the credential source.
+.TP
+.B mcp add\fR|\fBremove\fR|\fBlist\fR|\fBlogin\fR|\fBlogout
+Manage MCP servers and their OAuth credentials. Configuration lives in
+.I ~/.pi/agent/mcp.json
+or a trusted project's
+.IR .pi/mcp.json .
+.B list
+connects to enabled servers and reports their tools and connection errors.
+Run
+.B pi mcp --help
+for command-specific options.
+.SH OPTIONS
+.BI \-\-provider " name"
+Limit model selection to this provider. Requires
+.BR --model .
+.TP
+.BI \-\-model " pattern"
+Model pattern or ID; supports a
+.RI \(dq provider / id \(dq
+form and an optional
+.RI \(dq : thinking \(dq
+suffix.
+.TP
+.BI \-\-api\-key " key"
+API key. Defaults to the provider's environment variable.
+.TP
+.BR \-\-print ", " \-p
+Non-interactive mode: process the prompt, print the result, and exit.
+A response truncated at the output token limit produces a warning and
+non-zero exit status.
+.TP
+.BR \-\-continue ", " \-c
+Continue the previous session.
+.TP
+.BR \-\-resume ", " \-r
+Select a session to resume.
+.TP
+.BI \-\-session " path|id"
+Use a specific session file or partial session UUID.
+.TP
+.BR \-\-thinking " " \fIlevel\fR
+Set the reasoning effort: off, minimal, low, medium, high, xhigh, or max.
+.TP
+.BR \-\-tools ", " \-t " " \fItools\fR
+Comma-separated allowlist of tool names or patterns (*) to enable.
+Keeps MCP tools unless an entry starts with
+.BR mcp__ .
+A list containing only
+.B +name
+and
+.B -name
+entries adds to or removes from the default tools.
+.TP
+.BR \-\-exclude\-tools ", " \-xt " " \fItools\fR
+Comma-separated denylist of tool names or patterns (*) to disable,
+including MCP tools.
+.TP
+.B \-\-no-mcp
+Disable built-in MCP support: no servers connect and no MCP tools load.
+.TP
+.BR \-\-extension ", " \-e " " \fIpath\fR
+Load an extension file or a built-in extension using
+.BR builtin:name ;
+may be given multiple times.
+.TP
+.BI \-\-export " file"
+Export a session file to HTML and exit.
+.TP
+.B \-\-offline
+Disable startup network operations (same as
+.BR PI_OFFLINE=1 ).
+.TP
+.B \-\-
+End option parsing; treat remaining arguments as messages or
+.IB @ files\&,
+allowing prompts that begin with a dash.
+.TP
+.BI \-\-tui-mode " mode"
+TUI mode:
+.BR fullscreen (default) or
+.BR regular .
+.TP
+.BI \-\-use-theme " name"
+Set the initial interactive theme for this run.
+.TP
+.BR \-\-help ", " \-h
+Show the full help and exit.
+.TP
+.BR \-\-version ", " \-v
+Show the version number and exit.
+.SH ENVIRONMENT
+.TP
+.B PI_OFFLINE
+When set to a non-empty value, disables startup network operations.
+.TP
+.B PI_CLIPBOARD_OSC52
+Set to 1 to emit OSC 52 for text copies even if native clipboard commands succeed.
+Useful when running remotely or inside a container; requires terminal support.
+.PP
+Provider credentials are read from their usual environment variables, for
+example
+.BR OPENAI_API_KEY ,
+.BR ANTHROPIC_API_KEY ,
+or
+.BR GEMINI_API_KEY .
+See the provider documentation for the full list.
+.SH CLIPBOARD
+Clipboard text and image access on Linux use
+.B wl-clipboard
+on Wayland or
+.B xclip
+on X11. Install the matching optional package for desktop clipboard access.
+Remote and headless text copy can use OSC 52 when supported by the terminal.
+.SH FILES
+.TP
+.I ~/.pi/
+Per-user configuration, settings, sessions, and discovered extensions.
+.SH EXAMPLES
+.PP
+Start an interactive session with an initial prompt:
+.PP
+.RS
+.B pi \(dqList all .ts files in src/\(dq
+.RE
+.PP
+Process a prompt non-interactively and exit:
+.PP
+.RS
+.B pi \-p \(dqSummarize README.md\(dq
+.RE
+.PP
+Use a specific provider and model:
+.PP
+.RS
+.B pi \-\-model openai/gpt\-4o \(dqHelp me refactor this code\(dq
+.RE
+.SH SEE ALSO
+Project website and documentation:
+.UR https://pi.dev/
+.UE .
+.SH AUTHOR
+Pi was written by Mario Zechner and contributors.

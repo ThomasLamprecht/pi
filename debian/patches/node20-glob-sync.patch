@@ -1,0 +1,32 @@
+--- a/packages/coding-agent/src/core/package-manager.ts
++++ b/packages/coding-agent/src/core/package-manager.ts
+@@ -3,7 +3,6 @@
+ import {
+ 	chmodSync,
+ 	existsSync,
+-	globSync,
+ 	mkdirSync,
+ 	readdirSync,
+ 	readFileSync,
+@@ -284,6 +283,21 @@
+ 	return s.includes("*") || s.includes("?");
+ }
+ 
++/** Node 20-compatible globSync polyfill: fs.globSync is Node 22+ only. */
++function globSync(pattern: string, options: { cwd: string }): string[] {
++	const results: string[] = [];
++	function walk(dir: string): void {
++		for (const entry of readdirSync(dir, { withFileTypes: true })) {
++			const fullPath = join(dir, entry.name);
++			const relPath = relative(options.cwd, fullPath);
++			if (entry.isDirectory()) walk(fullPath);
++			if (minimatch(relPath, pattern)) results.push(relPath);
++		}
++	}
++	walk(options.cwd);
++	return results;
++}
++
+ /** Glob entries discover visible paths; exact entries can target dot paths or symlinked trees. */
+ function expandPackageGlob(pattern: string, root: string): string[] {
+ 	return globSync(pattern, { cwd: root })

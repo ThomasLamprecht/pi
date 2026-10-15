@@ -1,0 +1,37 @@
+Source: pi-coding-agent
+Section: devel
+Priority: optional
+Maintainer: Thomas Lamprecht <thomas@lamprecht.org>
+Build-Depends:
+ ca-certificates,
+ debhelper-compat (= 13),
+ nodejs (>= 20.18.1),
+ npm,
+Standards-Version: 4.7.2
+Homepage: https://pi.dev
+Vcs-Browser: https://github.com/earendil-works/pi
+Vcs-Git: https://github.com/earendil-works/pi.git
+Rules-Requires-Root: no
+
+Package: pi-coding-agent
+Architecture: all
+Depends:
+ nodejs (>= 20.18.1),
+ ${misc:Depends},
+Suggests:
+ wl-clipboard,
+ xclip,
+Description: self-extensible AI coding agent for the terminal
+ Pi is an interactive coding agent that runs in your terminal. It reads,
+ edits, and writes files, runs shell commands, and manages persistent
+ sessions, driving a large language model through a tool-calling loop to
+ carry out software engineering tasks.
+ .
+ It talks to many model providers through a single unified API, including
+ OpenAI, Anthropic, Google, Mistral, Amazon Bedrock, Azure OpenAI, and
+ GitHub Copilot, and can be extended at runtime with custom tools, skills,
+ prompt templates, and themes.
+ .
+ This package installs the "pi" command. Provider API keys are supplied at
+ runtime through environment variables or the interactive setup; none are
+ required to install the package.

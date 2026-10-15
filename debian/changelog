@@ -1,0 +1,226 @@
+pi-coding-agent (1.3.0) unstable; urgency=medium
+
+  * New upstream release 1.3.0.
+
+  * build: exclude generated build directories from dependency pin checks
+    so preserved older releases do not affect source validation.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Fri, 16 Oct 2026 00:20:47 +0200
+
+pi-coding-agent (1.2.0) unstable; urgency=medium
+
+  * New upstream release 1.2.0.
+
+  * packaging: omit Chord and its esbuild compatibility patches after
+    upstream removed them from the coding-agent runtime dependencies.
+
+  * manpage: document forced OSC 52 clipboard copies and the non-zero
+    print-mode exit status for truncated responses.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Tue, 13 Oct 2026 12:20:12 +0200
+
+pi-coding-agent (1.1.0) unstable; urgency=medium
+
+  * New upstream release 1.1.0.
+
+  * manpage: document additive and subtractive --tools entries for
+    adjusting the default tool set.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Fri, 09 Oct 2026 14:40:09 +0200
+
+pi-coding-agent (1.0.4) unstable; urgency=medium
+
+  * New upstream release 1.0.4.
+
+  * manpage: document --no-mcp and tool patterns, including the changed
+    handling of MCP tools in --tools allowlists.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Tue, 06 Oct 2026 09:50:08 +0200
+
+pi-coding-agent (1.0.3) unstable; urgency=medium
+
+  * New upstream release 1.0.3.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Mon, 05 Oct 2026 18:01:01 +0200
+
+pi-coding-agent (1.0.1) unstable; urgency=medium
+
+  * New upstream release 1.0.1.
+
+  * dependencies: preserve upstream's protobufjs override at the install
+    root after removal of the npm shrinkwrap.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Sat, 03 Oct 2026 18:59:45 +0200
+
+pi-coding-agent (1.0.0) unstable; urgency=medium
+
+  * New upstream release 1.0.0.
+
+  * manpage: document fullscreen as the default TUI mode and the required
+    --model argument when selecting a provider.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Thu, 01 Oct 2026 22:48:16 +0200
+
+pi-coding-agent (0.99.2) unstable; urgency=medium
+
+  * New upstream release 0.99.2.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Thu, 01 Oct 2026 02:06:22 +0200
+
+pi-coding-agent (0.99.1) unstable; urgency=medium
+
+  * New upstream release 0.99.1.
+
+  * rules: build with TypeScript 7 and include the MCP and codemode
+    workspaces for server tools and sandboxed JavaScript execution.
+
+  * pi-ai: refresh the release model catalog without live generation
+    during the Debian build.
+
+  * manpage: document MCP commands and built-in extension selection.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Wed, 30 Sep 2026 09:50:17 +0200
+
+pi-coding-agent (0.87.1) unstable; urgency=medium
+
+  * New upstream release 0.87.1.
+
+  * pi-ai: refresh the built-in catalog for GPT-6 Sol and Luna, Claude
+    Opus 5.5, Grok 4.7, and the updated Copilot models.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Wed, 23 Sep 2026 10:47:26 +0200
+
+pi-coding-agent (0.87.0) unstable; urgency=medium
+
+  * New upstream release 0.87.0.
+
+  * pi-ai: refresh the built-in model snapshot, including Meta and Radius.
+
+  * dependencies: pin undici 7.29.1 for HTTP and WebSocket security fixes
+    while retaining Node.js 20 support.
+
+  * rules: use esbuild-wasm 0.28.2 to match Chord's updated bundler.
+
+  * clipboard: suggest wl-clipboard and xclip for desktop text and image
+    access without architecture-specific native modules.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Tue, 22 Sep 2026 11:38:26 +0200
+
+pi-coding-agent (0.85.1) unstable; urgency=medium
+
+  * New upstream release 0.85.1, including GPT-6 Astra support.
+
+  * rules: follow upstream's separation of the development-only remote
+    harness and omit its three workspaces from the runtime closure.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Sat, 05 Sep 2026 15:14:33 +0200
+
+pi-coding-agent (0.85.0) unstable; urgency=medium
+
+  * New upstream release 0.85.0.
+
+  * pi-ai: backport GPT-6 Astra support from upstream commit 17de82d7b
+    and include it in the built-in model snapshot.
+
+  * rules: package Chord and its WASM plugin bundler while retaining
+    compatibility with Debian trixie's Node.js 20.
+
+  * rules: validate compatibility patch states on repeated builds and
+    point package entrypoints at the shipped unbundled files.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Sat, 05 Sep 2026 12:06:31 +0200
+
+pi-coding-agent (0.84.3) unstable; urgency=medium
+
+  * New upstream release 0.84.3.
+
+  * manpage: document the new "--" end-of-options delimiter.
+
+  * rules: skip coding-agent's esbuild bundle step (build:unbundled
+    instead of build); the bundler rejects node:sqlite (from undici 8.x
+    SqliteCacheStore) as an unexpected external import on Node 20, where
+    isBuiltin("node:sqlite") is false. The bundle only feeds the npm
+    bin; the Debian launcher runs dist/cli.js directly.
+
+  * rules: patch coding-agent's fs.globSync (Node 22+) usage with a
+    readdirSync + minimatch polyfill for Node 20 compatibility
+    (debian/patches/node20-glob-sync.patch).
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Thu, 27 Aug 2026 11:59:30 +0200
+
+pi-coding-agent (0.84.2) unstable; urgency=medium
+
+  * New upstream release 0.84.2.
+
+  * rules: build and pack the three new workspace packages
+    (pi-telemetry, pi-protocol, pi-client) that pi-ai, pi-agent-core,
+    and pi-coding-agent now depend on. The build order is telemetry ->
+    protocol -> client -> tui -> ai -> agent-core -> coding-agent.
+
+  * manpage: document the new --tui-mode and --use-theme flags and the
+    "pi auth check" subcommand.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Fri, 21 Aug 2026 12:07:50 +0200
+
+pi-coding-agent (0.83.0) unstable; urgency=medium
+
+  * New upstream release 0.83.0.
+
+  * manpage: document the new \(lqpi auth\(rq subcommand for printing
+    configured API keys and OAuth bearer tokens for external clients.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Thu, 30 Jul 2026 13:49:54 +0200
+
+pi-coding-agent (0.82.1) unstable; urgency=medium
+
+  * New upstream release 0.82.1.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Mon, 27 Jul 2026 18:25:02 +0200
+
+pi-coding-agent (0.82.0) unstable; urgency=medium
+
+  * New upstream release 0.82.0.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Fri, 24 Jul 2026 11:13:24 +0200
+
+pi-coding-agent (0.81.1) unstable; urgency=medium
+
+  * New upstream release 0.81.1.
+
+  * pi-ai: ship a committed snapshot of the generated model data
+    (src/providers/data/*.json). Upstream split the model catalog into
+    JSON files under src/providers/data/ that are generated at build time
+    from live catalogs and are gitignored. Without them the compiled
+    providers import missing JSON and the package crashes at runtime. The
+    snapshot is compiled with tsgo and copied into dist verbatim, matching
+    upstream's build:offline, keeping the build offline and reproducible
+    on Node.js 20.
+
+  * launcher: report the actual Node.js runtime floor (>= 20.18.1) in the
+    missing-runtime error message instead of upstream's >= 22.19.0.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Thu, 23 Jul 2026 15:10:00 +0200
+
+pi-coding-agent (0.80.2) unstable; urgency=medium
+
+  * New upstream release 0.80.2.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Fri, 26 Jun 2026 15:38:08 +0200
+
+pi-coding-agent (0.79.8) unstable; urgency=medium
+
+  * Initial packaging of the Pi coding agent as the "pi" command.
+  * Ship the compiled application plus its pruned production dependency
+    closure under /usr/lib/pi and run it through a thin /usr/bin/pi launcher,
+    so the package stays self-contained apart from the Node.js runtime.
+  * Pin undici to the latest Node.js 20-compatible release (7.x) in the bundled
+    closure. Upstream pins undici 8.x, which raises the runtime floor to
+    Node.js 22.19; the 7.x line keeps the same API surface the agent uses and
+    drops the floor to Node.js 20.18.1, so the package runs on the Node.js that
+    Debian ships.
+  * Compile the committed model snapshot instead of running pi-ai's code
+    generation, which fetches live model catalogs over the network (and runs
+    .ts files directly, requiring Node.js >= 22.6). This keeps the build
+    reproducible and buildable on Debian's Node.js 20.
+
+ -- Thomas Lamprecht <thomas@lamprecht.org>  Sat, 20 Jun 2026 16:22:15 +0200

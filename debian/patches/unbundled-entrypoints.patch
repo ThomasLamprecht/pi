@@ -1,0 +1,20 @@
+--- a/packages/coding-agent/package.json
++++ b/packages/coding-agent/package.json
+@@ -7,7 +7,7 @@
+ 		"configDir": ".pi"
+ 	},
+ 	"bin": {
+-		"pi": "dist/bundle/cli.js"
++		"pi": "dist/cli.js"
+ 	},
+ 	"main": "./dist/index.js",
+ 	"types": "./dist/index.d.ts",
+@@ -17,7 +17,7 @@
+ 			"import": "./dist/index.js"
+ 		},
+ 		"./rpc-entry": {
+-			"import": "./dist/bundle/rpc-entry.js"
++			"import": "./dist/rpc-entry.js"
+ 		}
+ 	},
+ 	"files": [

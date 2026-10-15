@@ -1,0 +1,92 @@
+Packaging notes for pi-coding-agent
+===================================
+
+Build requirements
+------------------
+
+The package builds and runs with Debian trixie's Node.js 20 and npm 9.
+Network access to the npm registry is required for npm ci and production
+closure resolution. Model compilation uses committed data and does not
+contact live catalogs. This is not a network-isolated Debian build.
+
+Building the Debian package
+---------------------------
+
+Run make deb from the repository root. Each invocation creates an isolated
+source copy in build/pi-coding-agent-<version>-<suffix>/ and writes its .deb,
+.buildinfo, and .changes outputs directly into build/. Compilation, npm
+dependencies, and compatibility patches stay in that copy, not the original
+working tree.
+
+Previous source copies remain intact. Before rebuilding the same version,
+existing package outputs move to build/previous-outputs-<version>-<suffix>/.
+Builds sharing the output directory run one at a time to avoid collisions.
+
+The copy includes current contents of Git-tracked files, including staged
+additions and uncommitted edits. Add new source files to Git before building;
+untracked files are excluded. To pass dpkg-buildpackage options explicitly,
+run bash debian/build-package -b -uc -us -d, for example.
+
+Direct dpkg-buildpackage invocations still use Debian's standard locations:
+build scratch in the source tree and package outputs in its parent directory.
+Use make deb for the isolated build/ layout.
+
+Node.js 20 compatibility
+-----------------------
+
+Upstream targets Node.js >= 22.19. The Debian package requires >= 20.18.1:
+
+  * The production closure pins undici to 7.29.1. Upstream's undici 8.x
+    needs Node 22.19, while 7.29.1 supports Node 20.18.1 and the HTTP APIs
+    used by pi. Compilation still uses upstream's development dependencies.
+
+  * pi-ai compiles the committed src/providers/data snapshot with tsc and
+    copies the data into dist verbatim. The snapshot comes from the
+    @earendil-works/pi-ai@1.3.0 npm tarball, including the Meta and Radius
+    catalogs. Catalog updates are a maintainer operation, not a Debian
+    build step.
+
+  * coding-agent uses build:unbundled. The upstream bundle validator rejects
+    undici 8.x's node:sqlite import on Node 20. The Debian launcher and
+    package metadata both reference the unbundled entrypoints.
+
+  * The package-manager patch replaces fs.globSync, which needs Node 22,
+    with readdirSync and minimatch for resource discovery.
+
+The native source format does not apply quilt patches automatically.
+debian/apply-patches applies compatibility patches before compilation and
+reverses them during clean. It accepts an already-applied or already-reversed
+patch only after checking the complete opposite patch state. Unknown or
+partially applied source states fail the build rather than skipping patches.
+
+How the package is assembled
+----------------------------
+
+  1. Install development dependencies with npm ci --ignore-scripts.
+
+  2. Build and pack seven local workspaces: pi-telemetry, pi-tui, pi-ai,
+     pi-agent-core, pi-codemode, pi-mcp, and pi-coding-agent. Upstream removed
+     the experimental remote harness and the coding-agent's Chord dependency;
+     neither Chord nor esbuild is needed in the production closure.
+
+  3. Resolve a production-only dependency tree into debian/install-root.
+     Local tarballs are direct dependencies, not file-based overrides,
+     which npm 9 rejects. undici uses a plain version override.
+     Upstream no longer ships npm-shrinkwrap.json. Transitive dependencies
+     resolve from the registry at build time; the generated package-lock.json
+     in debian/install-root records that build's resolution. Upstream's
+     protobufjs override is applied at the install root.
+
+  4. Install the application and dependency closure under /usr/lib/pi.
+     /usr/bin/pi launches dist/cli.js using the system Node.js runtime.
+
+The package omits optional native dependencies and the TUI's native helpers,
+keeping Architecture: all. Clipboard text and image access use wl-clipboard
+on Wayland or xclip on X11. These packages are suggested, not required for
+headless use. Remote and headless text copy can use the terminal's OSC 52
+clipboard support.
+
+Source format
+-------------
+
+The package uses 3.0 (native); packaging lives inside the upstream source tree.
