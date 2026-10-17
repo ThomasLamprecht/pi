@@ -71,19 +71,64 @@ export function computeFileLists(fileOps: FileOperations): { readFiles: string[]
 	return { readFiles: readOnly, modifiedFiles };
 }
 
-/**
- * Format file operations as XML tags for summary.
- */
+/** Keep cumulative file tracking from dominating the summary's model context. */
+const FILE_LIST_MAX_CHARS = 4000;
+
+function formatFileList(tag: string, files: string[], maxChars: number): string {
+	if (files.length === 0) return "";
+	const prefix = `<${tag}>\n`;
+	const suffix = `\n</${tag}>`;
+	const content = files.join("\n");
+	if (prefix.length + content.length + suffix.length <= maxChars) return prefix + content + suffix;
+
+	// Reserve room for the omission notice and keep paths intact. Each list has its own budget so a large read-only
+	// history cannot crowd out modified files.
+	const notice = (count: number) => `[... ${count} more ${count === 1 ? "file" : "files"} in session details]`;
+	let remaining = maxChars - prefix.length - suffix.length - notice(files.length).length;
+	const kept: string[] = [];
+	for (const path of files) {
+		if (path.length + 1 > remaining) break;
+		kept.push(path);
+		remaining -= path.length + 1;
+	}
+	return prefix + [...kept, notice(files.length - kept.length)].join("\n") + suffix;
+}
+
+/** Format a bounded preview; the complete lists remain in session entry details. */
 export function formatFileOperations(readFiles: string[], modifiedFiles: string[]): string {
-	const sections: string[] = [];
-	if (readFiles.length > 0) {
-		sections.push(`<read-files>\n${readFiles.join("\n")}\n</read-files>`);
+	const sections = [
+		formatFileList("read-files", readFiles, FILE_LIST_MAX_CHARS),
+		formatFileList("modified-files", modifiedFiles, FILE_LIST_MAX_CHARS),
+	].filter(Boolean);
+	return sections.length === 0 ? "" : `\n\n${sections.join("\n\n")}`;
+}
+
+/**
+ * Remove only a generated trailer that matches the entry's file metadata. Re-summarizing the trailer can copy cumulative
+ * file lists into prose, outside the bounded preview appended by Pi.
+ */
+export function stripFileOperations(summary: string, details: unknown): string {
+	if (!details || typeof details !== "object") return summary;
+	const { readFiles = [], modifiedFiles = [] } = details as { readFiles?: unknown; modifiedFiles?: unknown };
+	if (
+		!Array.isArray(readFiles) ||
+		!Array.isArray(modifiedFiles) ||
+		!readFiles.every((path) => typeof path === "string") ||
+		!modifiedFiles.every((path) => typeof path === "string")
+	) {
+		return summary;
 	}
-	if (modifiedFiles.length > 0) {
-		sections.push(`<modified-files>\n${modifiedFiles.join("\n")}\n</modified-files>`);
-	}
-	if (sections.length === 0) return "";
-	return `\n\n${sections.join("\n\n")}`;
+
+	const preview = formatFileOperations(readFiles, modifiedFiles);
+	if (preview && summary.endsWith(preview)) return summary.slice(0, -preview.length);
+
+	// Existing sessions can contain the complete lists rather than a bounded preview.
+	const sections = [
+		formatFileList("read-files", readFiles, Infinity),
+		formatFileList("modified-files", modifiedFiles, Infinity),
+	].filter(Boolean);
+	const full = sections.length === 0 ? "" : `\n\n${sections.join("\n\n")}`;
+	return full && summary.endsWith(full) ? summary.slice(0, -full.length) : summary;
 }
 
 // ============================================================================

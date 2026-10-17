@@ -25,6 +25,7 @@ import {
 	formatFileOperations,
 	SUMMARIZATION_SYSTEM_PROMPT,
 	serializeConversation,
+	stripFileOperations,
 } from "./utils.ts";
 
 // ============================================================================
@@ -164,10 +165,18 @@ function getMessageFromEntry(entry: SessionEntry): AgentMessage | undefined {
 			return createCustomMessage(entry.customType, entry.content, entry.display, entry.details, entry.timestamp);
 
 		case "branch_summary":
-			return createBranchSummaryMessage(entry.summary, entry.fromId, entry.timestamp);
+			return createBranchSummaryMessage(
+				entry.fromHook ? entry.summary : stripFileOperations(entry.summary, entry.details),
+				entry.fromId,
+				entry.timestamp,
+			);
 
 		case "compaction":
-			return createCompactionSummaryMessage(entry.summary, entry.tokensBefore, entry.timestamp);
+			return createCompactionSummaryMessage(
+				entry.fromHook ? entry.summary : stripFileOperations(entry.summary, entry.details),
+				entry.tokensBefore,
+				entry.timestamp,
+			);
 
 		// These don't contribute to conversation content
 		case "thinking_level_change":
@@ -187,7 +196,7 @@ function getMessageFromEntry(entry: SessionEntry): AgentMessage | undefined {
  *
  * Also collects file operations from:
  * - Tool calls in assistant messages
- * - Existing branch_summary entries' details (for cumulative tracking)
+ * - Existing branch_summary and compaction entries' details (for cumulative tracking)
  *
  * @param entries - Entries in chronological order
  * @param tokenBudget - Maximum tokens to include (0 = no limit)
@@ -198,10 +207,10 @@ export function prepareBranchEntries(entries: SessionEntry[], tokenBudget: numbe
 	let totalTokens = 0;
 
 	// First pass: collect file ops from ALL entries (even if they don't fit in token budget)
-	// This ensures we capture cumulative file tracking from nested branch summaries
+	// This ensures we capture cumulative file tracking from nested branch summaries and compactions
 	// Only extract from pi-generated summaries (fromHook !== true), not extension-generated ones
 	for (const entry of entries) {
-		if (entry.type === "branch_summary" && !entry.fromHook && entry.details) {
+		if ((entry.type === "branch_summary" || entry.type === "compaction") && !entry.fromHook && entry.details) {
 			const details = entry.details as BranchSummaryDetails;
 			if (Array.isArray(details.readFiles)) {
 				for (const f of details.readFiles) fileOps.read.add(f);

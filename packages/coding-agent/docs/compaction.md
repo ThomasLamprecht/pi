@@ -199,9 +199,13 @@ After navigation with summary:
 
 ### Cumulative File Tracking
 
-Default compaction and branch summarization track files cumulatively. Both extract file operations from tool calls in the messages being summarized. Compaction also carries file lists from the previous Pi-generated compaction. Branch summarization carries file lists from Pi-generated branch summaries in the entries it summarizes.
+Default compaction and branch summarization track files cumulatively. Both extract file operations from tool calls in the messages being summarized. Compaction also carries file lists from the previous Pi-generated compaction and from Pi-generated branch summaries in the entries it summarizes. Branch summarization carries file lists from Pi-generated branch summaries and compactions in the entries it summarizes.
 
-File tracking therefore accumulates across default compactions and nested default branch summaries. Pi does not automatically carry file lists from extension-generated summaries whose `fromHook` field is `true`; extensions manage their own `details` format.
+File tracking therefore accumulates across default compactions and nested default branch summaries. The complete lists remain in each summary entry's `details`. The summary text includes an alphabetical preview capped at 4000 characters per list, including tags and an omitted-file count. Paths are never cut in the middle, and read-only files cannot consume the modified-file list's budget.
+
+Before re-summarizing a Pi-generated summary, Pi removes its generated file-list trailer when it matches the entry's metadata. This also handles existing summaries with unbounded trailers and prevents file lists from being copied into summary prose. Paths mentioned in the prose remain unchanged.
+
+Pi does not automatically carry file lists from extension-generated summaries whose `fromHook` field is `true` or remove their trailers; extensions manage their own summary text and `details` format.
 
 ### BranchSummaryEntry Structure
 

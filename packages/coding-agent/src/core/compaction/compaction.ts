@@ -42,6 +42,7 @@ import {
 	formatFileOperations,
 	SUMMARIZATION_SYSTEM_PROMPT,
 	serializeConversation,
+	stripFileOperations,
 } from "./utils.ts";
 
 // ============================================================================
@@ -55,27 +56,22 @@ export interface CompactionDetails {
 }
 
 /**
- * Extract file operations from messages and previous compaction entries.
+ * Extract file operations from messages and the details of summary entries.
  */
-function extractFileOperations(
-	messages: AgentMessage[],
-	entries: SessionEntry[],
-	prevCompactionIndex: number,
-): FileOperations {
+function extractFileOperations(messages: AgentMessage[], summaryEntries: SessionEntry[]): FileOperations {
 	const fileOps = createFileOps();
 
-	// Collect from previous compaction's details (if pi-generated)
-	if (prevCompactionIndex >= 0) {
-		const prevCompaction = entries[prevCompactionIndex] as CompactionEntry;
-		if (!prevCompaction.fromHook && prevCompaction.details) {
-			// fromHook field kept for session file compatibility
-			const details = prevCompaction.details as CompactionDetails;
-			if (Array.isArray(details.readFiles)) {
-				for (const f of details.readFiles) fileOps.read.add(f);
-			}
-			if (Array.isArray(details.modifiedFiles)) {
-				for (const f of details.modifiedFiles) fileOps.edited.add(f);
-			}
+	// Collect from summary details (if pi-generated)
+	for (const entry of summaryEntries) {
+		if (entry.type !== "compaction" && entry.type !== "branch_summary") continue;
+		// fromHook field kept for session file compatibility
+		if (entry.fromHook || !entry.details) continue;
+		const details = entry.details as CompactionDetails;
+		if (Array.isArray(details.readFiles)) {
+			for (const f of details.readFiles) fileOps.read.add(f);
+		}
+		if (Array.isArray(details.modifiedFiles)) {
+			for (const f of details.modifiedFiles) fileOps.edited.add(f);
 		}
 	}
 
@@ -98,7 +94,14 @@ function extractFileOperations(
 function getMessagesFromProjectedEntryForCompaction(entry: ProjectedSessionEntry): AgentMessage[] {
 	if (entry.sourceEntry.type === "compaction") return [];
 	// System messages are prompt state, not conversation; the compaction entry carries their replay.
-	return entry.messages.filter((message) => message.role !== "system");
+	const messages = entry.messages.filter((message) => message.role !== "system");
+	const source = entry.sourceEntry;
+	if (source.type !== "branch_summary" || source.fromHook) return messages;
+	return messages.map((message) =>
+		message.role === "branchSummary"
+			? { ...message, summary: stripFileOperations(message.summary, source.details) }
+			: message,
+	);
 }
 
 /** Result from compact() - SessionManager adds uuid/parentUuid when saving */
@@ -876,7 +879,8 @@ export function prepareCompaction(
 	let previousSummary: string | undefined;
 	let boundaryStart = 0;
 	if (prevCompactionIndex >= 0) {
-		previousSummary = (projectedEntries[prevCompactionIndex].sourceEntry as CompactionEntry).summary;
+		const previous = projectedEntries[prevCompactionIndex].sourceEntry as CompactionEntry;
+		previousSummary = previous.fromHook ? previous.summary : stripFileOperations(previous.summary, previous.details);
 		// The canonical projection has already selected the previous compaction's retained tail.
 		boundaryStart = prevCompactionIndex + 1;
 	}
@@ -900,8 +904,13 @@ export function prepareCompaction(
 
 	if (messagesToSummarize.length === 0 && turnPrefixMessages.length === 0) return undefined;
 
-	// Extract file operations from edited model-visible messages and the previous compaction.
-	const fileOps = extractFileOperations(messagesToSummarize, sourceEntries, prevCompactionIndex);
+	// Extract file operations from edited model-visible messages, the previous compaction, and summarized branch
+	// summaries, whose generated file-list trailers are stripped from the messages.
+	const summaryEntries: SessionEntry[] = sourceEntries
+		.slice(boundaryStart, cutPoint.firstKeptEntryIndex)
+		.filter((entry) => entry.type === "branch_summary");
+	if (prevCompactionIndex >= 0) summaryEntries.unshift(sourceEntries[prevCompactionIndex]);
+	const fileOps = extractFileOperations(messagesToSummarize, summaryEntries);
 
 	// Also extract file ops from turn prefix if splitting
 	if (cutPoint.isSplitTurn) {
